@@ -22,6 +22,7 @@ package amfSocket
     private var _reconnectTimer:Timer = null;
     private var _requests:Dictionary = new Dictionary();
     private var _latency:Number = 0.0;
+    private var _compress:Boolean = false;
 
     //
     // Constructor.
@@ -45,6 +46,8 @@ package amfSocket
         _reconnectTimer.addEventListener(TimerEvent.TIMER, reconnectTimer_timer);
         _reconnectTimer.start();
       }
+
+        _compress = options['compress'] != null && options['compress'] != false;
     }
 
     //

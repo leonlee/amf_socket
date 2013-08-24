@@ -34,14 +34,16 @@ package amfSocket
     private var _socket:Socket = null;
     private var _objectLength:int = -1;
     private var _buffer:ByteArray = new ByteArray();
+    private var _compress:Boolean = false;
 
     //
     // Constructor.
     //
 
-    public function AmfSocket(host:String = null, port:int = 0) {
+    public function AmfSocket(host:String = null, port:int = 0, compress:Boolean = false) {
       _host = host;
       _port = port;
+      _compress = compress;
     }
 
     //
@@ -114,6 +116,9 @@ package amfSocket
     private function encodeObject(object:*):ByteArray {
       var byteArray:ByteArray = new ByteArray();
       byteArray.writeObject(object);
+        if (_compress) {
+            byteArray.compress();
+        }
 
       return byteArray;
     }
@@ -172,6 +177,9 @@ package amfSocket
         var payloadSize:int = _buffer.readUnsignedInt();
 
         if(_buffer.length >= payloadSize + 4) {
+//                if (_compress) {
+//                    _buffer.uncompress(CompressionAlgorithm.ZLIB);
+//                }
           var object:* = _buffer.readObject();
           shiftBuffer(4 + payloadSize);
 
@@ -191,5 +199,5 @@ package amfSocket
       _buffer.readBytes(tmpBuffer);
       _buffer = tmpBuffer;
     }
-  }
+}
 }
