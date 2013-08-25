@@ -181,7 +181,7 @@ package amfSocket
     private function __connect():void {
       _state = 'connecting';
 
-      _socket = new AmfSocket(_host, _port);
+      _socket = new AmfSocket(_host, _port, _compress);
       addSocketEventListeners();
       _socket.connect();
     }
@@ -260,7 +260,7 @@ package amfSocket
       if(!data.request.hasOwnProperty('command'))
         return false;
 
-      if(!(data.request.command is String))
+      if(!(data.request.command is String) && !(data.request.command is int))
         return false;
 
       if(!data.request.hasOwnProperty('params'))
@@ -295,7 +295,7 @@ package amfSocket
       if(!data.message.hasOwnProperty('command'))
         return false;
 
-      if(!(data.message.command is String))
+      if(!(data.message.command is String) && !(data.request.command is int))
         return false;
 
       if(!data.message.hasOwnProperty('params'))

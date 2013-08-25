@@ -177,9 +177,9 @@ package amfSocket
         var payloadSize:int = _buffer.readUnsignedInt();
 
         if(_buffer.length >= payloadSize + 4) {
-//                if (_compress) {
-//                    _buffer.uncompress(CompressionAlgorithm.ZLIB);
-//                }
+//          if (_compress) {
+//            _buffer.uncompress();
+//          }
           var object:* = _buffer.readObject();
           shiftBuffer(4 + payloadSize);
 

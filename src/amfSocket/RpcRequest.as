@@ -8,7 +8,7 @@ package amfSocket
     // Constructor.
     //
 
-    public function RpcRequest(command:String, params:Object) {
+    public function RpcRequest(command:Object, params:Object) {
       super(command, params);
     }
 

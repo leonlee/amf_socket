@@ -7,7 +7,7 @@ package amfSocket
     //
 
     protected var _messageId:String = null;
-    protected var _command:String = null;
+    protected var _command:Object = null;
     protected var _params:Object = null;
 
     //
@@ -24,7 +24,7 @@ package amfSocket
     //
 
     public function get messageId():String { return _messageId; }
-    public function get command():String { return _command; }
+    public function get command():Object { return _command; }
     public function get params():Object { return _params; }
 
     //

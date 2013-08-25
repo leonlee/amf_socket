@@ -6,7 +6,7 @@ package amfSocket
     // Constructor.
     //
 
-    public function RpcMessage(command:String, params:Object) {
+    public function RpcMessage(command:Object, params:Object) {
       super(command, params);
     }
 
