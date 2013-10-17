@@ -6,8 +6,10 @@ import flash.events.EventDispatcher;
 import flash.events.IOErrorEvent;
 import flash.events.ProgressEvent;
 import flash.events.SecurityErrorEvent;
+import flash.net.ObjectEncoding;
 import flash.net.Socket;
 import flash.utils.ByteArray;
+import flash.utils.Endian;
 
 public class AmfSocket extends EventDispatcher {
     public static const CHARSET_LATIN1:String = 'iso-8859-1';
@@ -79,6 +81,8 @@ public class AmfSocket extends EventDispatcher {
             return;
         _connecting = true;
         _socket = new Socket();
+        _socket.endian = Endian.BIG_ENDIAN;
+        _socket.objectEncoding = ObjectEncoding.AMF3;
         addEventListeners();
         _socket.connect(_host, _port);
     }
