@@ -23,10 +23,10 @@ public class RpcManager extends EventDispatcher {
             options = {};
 
         if (options['autoReconnect'] == null)
-            options['autoReconnect'] = true;
+            options['autoReconnect'] = 2;
 
         if (options['autoReconnect']) {
-            _reconnectTimer = new Timer(3000, 0);
+            _reconnectTimer = new Timer(3000, options['autoReconnect']);
             _reconnectTimer.addEventListener(TimerEvent.TIMER, reconnectTimer_timer);
             _reconnectTimer.start();
         }
@@ -348,7 +348,13 @@ public class RpcManager extends EventDispatcher {
 
     private function socket_ioError(event:AmfSocketEvent):void {
         _state = 'failed';
-        dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
+        if (isFailed() || isDisconnected()) {
+            if (!_reconnectTimer.running) {
+                dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
+            }
+        } else {
+            dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
+        }
         cleanUp('ioError');
     }
 

@@ -6,15 +6,18 @@ import flash.events.EventDispatcher;
 import flash.events.IOErrorEvent;
 import flash.events.ProgressEvent;
 import flash.events.SecurityErrorEvent;
+import flash.events.TimerEvent;
 import flash.net.ObjectEncoding;
 import flash.net.Socket;
 import flash.utils.ByteArray;
 import flash.utils.Endian;
+import flash.utils.Timer;
 
 public class AmfSocket extends EventDispatcher {
     public static const CHARSET_LATIN1:String = 'iso-8859-1';
     public static const FORMAT_AMF3:int = 1;
     public static const FORMAT_BERT:int = 2;
+    public static const MAX_RECONNECT_TIME:int = 3;
 
     //
     // Instance variables.
@@ -49,6 +52,7 @@ public class AmfSocket extends EventDispatcher {
     private var _buffer:ByteArray = new ByteArray();
     private var _compress:Boolean = false;
     private var _connecting:Boolean = false;
+    private var _reconnectTimer:Timer = new Timer(2000, MAX_RECONNECT_TIME + 1);
     //
     // Constructor.
     //
@@ -100,7 +104,12 @@ public class AmfSocket extends EventDispatcher {
 
     public function sendObject(object:Object):void {
         if (!connected) {
+//            throw new Error('Can not send over a non-connected socket.');
+            _reconnectTimer.addEventListener(TimerEvent.TIMER, function (event:TimerEvent):void {
+                reconnect(object);
+            });
             reconnect(object);
+            return;
         }
 
         if (_format == FORMAT_AMF3) {
@@ -114,15 +123,15 @@ public class AmfSocket extends EventDispatcher {
         }
     }
 
-    private function reconnect(object:Object, times:int = 3):void {
-        if (times > 0) {
+    private function reconnect(object:Object):void {
+        if (_reconnectTimer.currentCount >= MAX_RECONNECT_TIME) {
             throw new Error('Can not send over a non-connected socket.');
         }
         connect();
         var resend:Function = function ():void {
             _socket.removeEventListener(Event.CONNECT, resend);
             if (!connected) {
-                reconnect(object, times - 1);
+                reconnect(object);
             } else {
                 sendObject(object);
             }
@@ -214,6 +223,7 @@ public class AmfSocket extends EventDispatcher {
     private function socket_disconnect(event:Event):void {
         log('Disconnected.');
 
+        _connecting = false;
         removeEventListeners();
         _socket = null;
 
@@ -223,12 +233,14 @@ public class AmfSocket extends EventDispatcher {
     private function socket_ioError(event:IOErrorEvent):void {
         log('IO Error.');
 
+        _connecting = false;
         dispatchEvent(new AmfSocketEvent(AmfSocketEvent.IO_ERROR));
     }
 
     private function socket_securityError(event:SecurityErrorEvent):void {
         log('Security Error.');
 
+        _connecting = false;
         dispatchEvent(new AmfSocketEvent(AmfSocketEvent.SECURITY_ERROR));
     }
 
