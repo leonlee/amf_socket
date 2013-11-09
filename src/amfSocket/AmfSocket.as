@@ -105,10 +105,11 @@ public class AmfSocket extends EventDispatcher {
     public function sendObject(object:Object):void {
         if (!connected) {
 //            throw new Error('Can not send over a non-connected socket.');
-            _reconnectTimer.addEventListener(TimerEvent.TIMER, function (event:TimerEvent):void {
-                reconnect(object);
-            });
-            reconnect(object);
+            var reconnectHandle:Function = function (event:TimerEvent):void {
+                reconnect(object, reconnectHandle);
+            };
+            _reconnectTimer.addEventListener(TimerEvent.TIMER, reconnectHandle);
+            _reconnectTimer.start();
             return;
         }
 
@@ -123,15 +124,17 @@ public class AmfSocket extends EventDispatcher {
         }
     }
 
-    private function reconnect(object:Object):void {
+    private function reconnect(object:Object, handle:Function):void {
         if (_reconnectTimer.currentCount >= MAX_RECONNECT_TIME) {
+            _reconnectTimer.removeEventListener(TimerEvent.TIMER, handle);
+            _reconnectTimer.stop();
             throw new Error('Can not send over a non-connected socket.');
         }
         connect();
         var resend:Function = function ():void {
             _socket.removeEventListener(Event.CONNECT, resend);
             if (!connected) {
-                reconnect(object);
+                reconnect(object, handle);
             } else {
                 sendObject(object);
             }
