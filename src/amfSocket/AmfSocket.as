@@ -130,16 +130,18 @@ public class AmfSocket extends EventDispatcher {
             _reconnectTimer.stop();
             throw new Error('Can not send over a non-connected socket.');
         }
-        connect();
-        var resend:Function = function ():void {
-            _socket.removeEventListener(Event.CONNECT, resend);
-            if (!connected) {
-                reconnect(object, handle);
-            } else {
-                sendObject(object);
-            }
-        };
-        _socket.addEventListener(Event.CONNECT, resend);
+        if (!connected) {
+            var resend:Function = function ():void {
+                _socket.removeEventListener(Event.CONNECT, resend);
+                if (!connected) {
+                    reconnect(object, handle);
+                } else {
+                    sendObject(object);
+                }
+            };
+            _socket.addEventListener(Event.CONNECT, resend);
+            connect();
+        }
     }
 
     //
