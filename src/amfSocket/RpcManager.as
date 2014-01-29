@@ -7,11 +7,15 @@ import flash.events.TimerEvent;
 import flash.utils.Dictionary;
 import flash.utils.Timer;
 
-public class RpcManager extends EventDispatcher {
+import org.as3commons.logging.api.ILogger;
+import org.as3commons.logging.api.getLogger;
 
+public class RpcManager extends EventDispatcher {
+    private static const logger:ILogger = getLogger(RpcManager);
     //
     // Constructor.
     //
+
     public function RpcManager(host:String, port:int, options:Object = null) {
         super();
 
@@ -22,13 +26,17 @@ public class RpcManager extends EventDispatcher {
         if (options == null)
             options = {};
 
-        if (options['autoReconnect'] == null)
-            options['autoReconnect'] = 2;
+        if (options['autoReconnect'] === null)
+            options['autoReconnect'] = 3;
 
-        if (options['autoReconnect']) {
+        if (options['autoReconnect'] !== null) {
             _reconnectTimer = new Timer(3000, options['autoReconnect']);
             _reconnectTimer.addEventListener(TimerEvent.TIMER, reconnectTimer_timer);
             _reconnectTimer.start();
+        }
+
+        if (options['reconnectHandler'] != null) {
+            _reconnectHandler = options['reconnectHandler'];
         }
 
         _compress = options['compress'] != null && options['compress'] != false;
@@ -46,7 +54,8 @@ public class RpcManager extends EventDispatcher {
     private var _reconnectTimer:Timer = null;
     private var _requests:Dictionary = new Dictionary();
     private var _compress:Boolean = false;
-    private var _format = AmfSocket.FORMAT_AMF3;
+    private var _format:int = AmfSocket.FORMAT_AMF3;
+    private var _reconnectHandler:Function = null;
 
     private var _latency:Number = 0.0;
 
@@ -112,11 +121,11 @@ public class RpcManager extends EventDispatcher {
 
     public function deliver(rpcObject:RpcObject):void {
         try {
-            if (rpcObject.hasOwnProperty('__signalSucceeded__'))
-                _requests[rpcObject.messageId] = rpcObject;
-
             var object:Object = rpcObject.toObject();
             _socket.sendObject(object);
+
+            if (rpcObject.hasOwnProperty('__signalSucceeded__'))
+                _requests[rpcObject.messageId] = rpcObject;
 
             rpcObject.__signalDelivered__();
         } catch (error:Error) {
@@ -185,9 +194,13 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function __connect():void {
+        var OldState:String = _state;
         _state = 'connecting';
 
         _socket = new AmfSocket(_host, _port, _compress, _format);
+        if (OldState == 'disconnected') {
+            _socket.addEventListener(AmfSocketEvent.CONNECTED, socket_reconnected);
+        }
         addSocketEventListeners();
         _socket.connect();
     }
@@ -198,7 +211,7 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function cleanUp(reason:String = null):void {
-        if (!_socket) {
+        if (_socket) {
             removeSocketEventListeners();
             _socket.disconnect();
             _socket = null;
@@ -313,6 +326,13 @@ public class RpcManager extends EventDispatcher {
         return true;
     }
 
+    private function socket_reconnected(event:AmfSocketEvent):void {
+        _socket.removeEventListener(AmfSocketEvent.CONNECTED, socket_reconnected);
+        if (_reconnectHandler) {
+            _reconnectHandler();
+        }
+    }
+
     //
     // Event handlers.
     //
@@ -365,8 +385,16 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function reconnectTimer_timer(event:TimerEvent):void {
+        logger.debug("reconnect timer...");
+        if (_reconnectTimer && _reconnectTimer.running) {
+            _reconnectTimer.stop();
+        }
         if (isFailed() || isDisconnected()) {
+            logger.debug("reconnecting...");
             reconnect();
+        }
+        if (_reconnectTimer && !_reconnectTimer.running) {
+            _reconnectTimer.start();
         }
     }
 }

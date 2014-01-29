@@ -6,31 +6,24 @@ import flash.events.EventDispatcher;
 import flash.events.IOErrorEvent;
 import flash.events.ProgressEvent;
 import flash.events.SecurityErrorEvent;
-import flash.events.TimerEvent;
 import flash.net.ObjectEncoding;
 import flash.net.Socket;
 import flash.utils.ByteArray;
 import flash.utils.Endian;
-import flash.utils.Timer;
+
+import org.as3commons.logging.api.ILogger;
+import org.as3commons.logging.api.getLogger;
 
 public class AmfSocket extends EventDispatcher {
-    public static const CHARSET_LATIN1:String = 'iso-8859-1';
     public static const FORMAT_AMF3:int = 1;
-    public static const FORMAT_BERT:int = 2;
-    public static const MAX_RECONNECT_TIME:int = 3;
+    public static const FORMAT_MSGPACK:int = 2;
+    private static const _logger:ILogger = getLogger(AmfSocket);
 
-    //
-    // Instance variables.
-    //
-
-    private static var _logger:Object;
-
-    public static function get logger():Object {
-        return _logger;
-    }
-
-    public static function set logger(value:Object):void {
-        _logger = value;
+    public static function log(message:String):void {
+        if (!_logger) {
+            return;
+        }
+        _logger.debug(message);
     }
 
     public function AmfSocket(host:String = null, port:int = 0, compress:Boolean = false, format:int = FORMAT_AMF3) {
@@ -38,23 +31,24 @@ public class AmfSocket extends EventDispatcher {
         _port = port;
         _compress = compress;
         _format = format;
-        if (_format == FORMAT_BERT) {
-            _bert = new Bert();
+        if (_format == FORMAT_MSGPACK) {
+            throw new Error("not implemented msgpack");
         }
     }
 
     private var _format:int;
-    private var _bert:Bert;
     private var _host:String = null;
     private var _port:int = 0;
     private var _socket:Socket = null;
-    private var _objectLength:int = -1;
     private var _buffer:ByteArray = new ByteArray();
-    private var _compress:Boolean = false;
-    private var _connecting:Boolean = false;
-    private var _reconnectTimer:Timer = new Timer(2000, MAX_RECONNECT_TIME + 1);
+
     //
     // Constructor.
+    //
+    private var _compress:Boolean = false;
+
+    //
+    // Public methods.
     //
 
     public function get connected():Boolean {
@@ -64,26 +58,10 @@ public class AmfSocket extends EventDispatcher {
             return true;
     }
 
-    //
-    // Public methods.
-    //
-
-    public function log(message:String):void {
-        var foo:Object = _logger;
-
-        if (!_logger)
-            return;
-
-        _logger.debug(message);
-    }
-
     public function connect():void {
         if (connected)
             throw new Error('Can not connect an already connected socket.');
 
-        if (_connecting)
-            return;
-        _connecting = true;
         _socket = new Socket();
         _socket.endian = Endian.BIG_ENDIAN;
         _socket.objectEncoding = ObjectEncoding.AMF3;
@@ -103,44 +81,16 @@ public class AmfSocket extends EventDispatcher {
     }
 
     public function sendObject(object:Object):void {
-        if (!connected) {
-//            throw new Error('Can not send over a non-connected socket.');
-            var reconnectHandle:Function = function (event:TimerEvent):void {
-                reconnect(object, reconnectHandle);
-            };
-            _reconnectTimer.addEventListener(TimerEvent.TIMER, reconnectHandle);
-            _reconnectTimer.start();
-            return;
-        }
+        if (!connected)
+            throw new Error('Can not send over a non-connected socket.');
 
         if (_format == FORMAT_AMF3) {
             var byteArray:ByteArray = encodeObject(object);
             _socket.writeUnsignedInt(byteArray.length);
             _socket.writeBytes(byteArray);
             _socket.flush();
-        } else {
-            _bert.writePacket(object, _socket);
-            _socket.flush();
-        }
-    }
-
-    private function reconnect(object:Object, handle:Function):void {
-        if (_reconnectTimer.currentCount >= MAX_RECONNECT_TIME) {
-            _reconnectTimer.removeEventListener(TimerEvent.TIMER, handle);
-            _reconnectTimer.stop();
-            throw new Error('Can not send over a non-connected socket.');
-        }
-        if (!connected) {
-            var resend:Function = function ():void {
-                _socket.removeEventListener(Event.CONNECT, resend);
-                if (!connected) {
-                    reconnect(object, handle);
-                } else {
-                    sendObject(object);
-                }
-            };
-            _socket.addEventListener(Event.CONNECT, resend);
-            connect();
+        } else if (_format == FORMAT_MSGPACK) {
+            throw new Error("not implemented msgpack");
         }
     }
 
@@ -197,8 +147,8 @@ public class AmfSocket extends EventDispatcher {
                 var object:* = null;
                 if (_format == FORMAT_AMF3) {
                     object = _buffer.readObject();
-                } else {
-                    object = _bert.read(_buffer, payloadSize);
+                } else if (_format == FORMAT_MSGPACK) {
+                    throw new Error("not implemented msgpack");
                 }
                 shiftBuffer(4 + payloadSize);
 
@@ -221,14 +171,13 @@ public class AmfSocket extends EventDispatcher {
 
     private function socket_connect(event:Event):void {
         log('Connected.');
-        _connecting = false;
+
         dispatchEvent(new AmfSocketEvent(AmfSocketEvent.CONNECTED));
     }
 
     private function socket_disconnect(event:Event):void {
         log('Disconnected.');
 
-        _connecting = false;
         removeEventListeners();
         _socket = null;
 
@@ -238,14 +187,12 @@ public class AmfSocket extends EventDispatcher {
     private function socket_ioError(event:IOErrorEvent):void {
         log('IO Error.');
 
-        _connecting = false;
         dispatchEvent(new AmfSocketEvent(AmfSocketEvent.IO_ERROR));
     }
 
     private function socket_securityError(event:SecurityErrorEvent):void {
         log('Security Error.');
 
-        _connecting = false;
         dispatchEvent(new AmfSocketEvent(AmfSocketEvent.SECURITY_ERROR));
     }
 
