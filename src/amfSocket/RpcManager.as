@@ -340,6 +340,9 @@ public class RpcManager extends EventDispatcher {
     private function socket_connected(event:AmfSocketEvent):void {
         _state = 'connected';
         dispatchEvent(new RpcManagerEvent(RpcManagerEvent.CONNECTED));
+        if (_reconnectTimer && !_reconnectTimer.running) {
+            _reconnectTimer.start();
+        }
     }
 
     private function socket_disconnected(event:AmfSocketEvent):void {
@@ -369,7 +372,7 @@ public class RpcManager extends EventDispatcher {
     private function socket_ioError(event:AmfSocketEvent):void {
         _state = 'failed';
         if (isFailed() || isDisconnected()) {
-            if (!_reconnectTimer.running) {
+            if (!_reconnectTimer || !_reconnectTimer.running) {
                 dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
             }
         } else {
@@ -393,9 +396,7 @@ public class RpcManager extends EventDispatcher {
             logger.debug("reconnecting...");
             reconnect();
         }
-        if (_reconnectTimer && !_reconnectTimer.running) {
-            _reconnectTimer.start();
-        }
+
     }
 }
 }
