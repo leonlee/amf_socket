@@ -63,18 +63,17 @@ public class AmfSocket extends EventDispatcher {
             throw new Error('Can not connect an already connected socket.');
 
         _socket = new Socket();
+        addEventListeners();
         _socket.endian = Endian.BIG_ENDIAN;
         _socket.objectEncoding = ObjectEncoding.AMF3;
-        addEventListeners();
         _socket.connect(_host, _port);
     }
 
     public function disconnect():void {
         if (_socket) {
-            removeEventListeners();
-
             if (_socket.connected)
                 _socket.close();
+            removeEventListeners();
         }
 
         _socket = null;
