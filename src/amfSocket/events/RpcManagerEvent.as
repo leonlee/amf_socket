@@ -9,7 +9,6 @@ package amfSocket.events
     //
 
     public static const CONNECTED:String = 'RPC_MANAGER_EVENT_CONNECTED';
-    public static const RECONNECTED:String = 'RPC_MANAGER_EVENT_RECONNECTED';
     public static const DISCONNECTED:String = 'RPC_MANAGER_EVENT_DISCONNECTED';
     public static const FAILED:String = 'RPC_MANAGER_EVENT_FAILED';
     public static const RECEIVED_REQUEST:String = 'RPC_MANAGER_RECEIVED_REQUEST';

@@ -155,7 +155,7 @@ public class RpcManager extends EventDispatcher {
             throw new Error('You must only reply to a request one time.');
 
         if (!_socket || !_socket.connected) {
-            logger.error("response timeout {0}", [JSON.stringify(object, null, 4)]);
+            logger.error("response timeout {0}", [JSON.stringify(request, null, 4)]);
             return;
         }
         var object:Object = {}
@@ -233,13 +233,8 @@ public class RpcManager extends EventDispatcher {
 
     private function __connect():void {
         try {
-            var OldState:String = _state;
             _state = 'connecting';
-
             _socket = new AmfSocket(_host, _port, _compress, _format);
-            if (OldState == 'disconnected') {
-                _socket.addEventListener(AmfSocketEvent.CONNECTED, socket_reconnected);
-            }
             addSocketEventListeners();
             _socket.connect();
         } catch (error:Error) {
@@ -296,7 +291,7 @@ public class RpcManager extends EventDispatcher {
         return true;
     }
 
-    private function isValidRpcRequest(data:Object):Boolean {
+    private static function isValidRpcRequest(data:Object):Boolean {
         if (!(data is Object))
             return false;
 
@@ -331,7 +326,7 @@ public class RpcManager extends EventDispatcher {
         return true;
     }
 
-    private function isValidRpcMessage(data:Object):Boolean {
+    private static function isValidRpcMessage(data:Object):Boolean {
         if (!(data is Object))
             return false;
 
@@ -363,11 +358,6 @@ public class RpcManager extends EventDispatcher {
             return false;
 
         return true;
-    }
-
-    private function socket_reconnected(event:AmfSocketEvent):void {
-        _socket.removeEventListener(AmfSocketEvent.CONNECTED, socket_reconnected);
-        dispatchEvent(new RpcManagerEvent(RpcManagerEvent.RECONNECTED));
     }
 
     //
