@@ -196,7 +196,7 @@ public class AmfSocket extends EventDispatcher {
     }
 
     private function socket_socketData(event:ProgressEvent):void {
-        log('Received Data. bytesAvailable=' + _socket.bytesAvailable);
+//        log('Received Data. bytesAvailable=' + _socket.bytesAvailable);
 
         // Append socket data to buffer.
         _buffer.position = 0;
@@ -205,7 +205,7 @@ public class AmfSocket extends EventDispatcher {
         // Process any buffered objects.
         var object:* = readBufferedObject();
         while (object) {
-            log('Received Object.');
+//            log('Received Object.');
             dispatchEvent(new AmfSocketEvent(AmfSocketEvent.RECEIVED_OBJECT, object));
             object = readBufferedObject();
         }

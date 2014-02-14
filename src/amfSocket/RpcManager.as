@@ -121,16 +121,25 @@ public class RpcManager extends EventDispatcher {
                 return;
             }
 
-            setTimeout(function ():void {
-                if (rpcObject && rpcObject.isInitialized()) {
-                    rpcObject.__signalFailed__('timeout');
-                }
-            }, SEND_TIMEOUT);
+            var needResponse:Boolean = rpcObject.hasOwnProperty('__signalSucceeded__');
+            if (needResponse) {
+                setTimeout(function ():void {
+                    if (rpcObject && (rpcObject.isInitialized() || rpcObject.isDelivered())) {
+                        rpcObject.__signalFailed__('timeout');
+                    }
+                }, SEND_TIMEOUT);
+            } else {
+                setTimeout(function ():void {
+                    if (rpcObject && rpcObject.isInitialized()) {
+                        rpcObject.__signalFailed__('timeout');
+                    }
+                }, SEND_TIMEOUT);
+            }
 
             var object:Object = rpcObject.toObject();
             _socket.sendObject(object);
 
-            if (rpcObject.hasOwnProperty('__signalSucceeded__')) {
+            if (needResponse) {
                 _requests[rpcObject.messageId] = rpcObject;
             }
 
@@ -411,7 +420,7 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function reconnectTimer_timer(event:TimerEvent):void {
-        logger.debug("reconnect timer...");
+//        logger.debug("reconnect timer...");
         if (isFailed() || isDisconnected()) {
             logger.debug("reconnecting...");
             reconnect();
