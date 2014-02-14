@@ -116,6 +116,11 @@ public class RpcManager extends EventDispatcher {
 
     public function deliver(rpcObject:RpcObject):void {
         try {
+            if (!_socket || !_socket.connected) {
+                rpcObject.__signalFailed__('timeout');
+                return;
+            }
+
             setTimeout(function ():void {
                 if (rpcObject && rpcObject.isInitialized()) {
                     rpcObject.__signalFailed__('timeout');
@@ -131,6 +136,7 @@ public class RpcManager extends EventDispatcher {
 
             rpcObject.__signalDelivered__();
         } catch (error:Error) {
+            logger.debug("caught error when delivering {0}, {1}", [JSON.stringify(error, null, 4), error.getStackTrace()]);
             dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED, error));
         }
     }
@@ -139,6 +145,10 @@ public class RpcManager extends EventDispatcher {
         if (!request.isInitialized())
             throw new Error('You must only reply to a request one time.');
 
+        if (!_socket || !_socket.connected) {
+            logger.error("response timeout {0}", [JSON.stringify(object, null, 4)]);
+            return;
+        }
         var object:Object = {}
 
         object.type = 'rpcResponse';
@@ -224,6 +234,7 @@ public class RpcManager extends EventDispatcher {
             addSocketEventListeners();
             _socket.connect();
         } catch (error:Error) {
+            logger.debug("caught error when connecting {0}, {1}", [JSON.stringify(error, null, 4), error.getStackTrace()]);
             dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED, error));
         }
 
@@ -386,6 +397,7 @@ public class RpcManager extends EventDispatcher {
     private function socket_ioError(event:AmfSocketEvent):void {
         _state = 'failed';
         if (isFailed() || isDisconnected()) {
+            logger.debug("caught error when io error ");
             dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
         }
         cleanUp('ioError');
@@ -393,6 +405,7 @@ public class RpcManager extends EventDispatcher {
 
     private function socket_securityError(event:AmfSocketEvent):void {
         _state = 'failed';
+        logger.debug("caught error when io security error ");
         dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED));
         cleanUp('securityError');
     }
