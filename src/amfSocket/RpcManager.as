@@ -147,6 +147,10 @@ public class RpcManager extends EventDispatcher {
     }
 
     public function clearRequests():void {
+        for each (var rpcObject:RpcObject in _requestQueue) {
+            rpcObject.__signalDropped__();
+        }
+        _requestQueue = [];
         for (var messageId:String in _requests) {
             var request:RpcRequest = _requests[messageId];
             request.__signalDropped__();
@@ -155,6 +159,10 @@ public class RpcManager extends EventDispatcher {
     }
 
     public function failRequests():void {
+        for each (var rpcObject:RpcObject in _requestQueue) {
+            rpcObject.__signalFailed__();
+        }
+        _requestQueue = [];
         for (var messageId:String in _requests) {
             var request:RpcRequest = _requests[messageId];
             request.__signalFailed__();
@@ -190,7 +198,6 @@ public class RpcManager extends EventDispatcher {
     //
 
     private function fail():void {
-        _requestQueue = [];
         _responseQueue = [];
         failRequests();
         clearRequestTimers();
@@ -415,7 +422,6 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function onAppDeactivate(event:Event):void {
-        _requestQueue = [];
         _responseQueue = [];
         clearRequests();
         clearRequestTimers();
@@ -437,9 +443,7 @@ public class RpcManager extends EventDispatcher {
     private function socket_connected(event:AmfSocketEvent):void {
         _state = ST_CONNECTED;
         _reconnectTimes = 0;
-        if (_requestQueue && _requestQueue.length > 0) {
-            _reconnecter.afterConnect();
-        }
+        _reconnecter.afterConnect();
         dispatchEvent(new RpcManagerEvent(RpcManagerEvent.CONNECTED));
     }
 

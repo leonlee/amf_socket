@@ -111,6 +111,7 @@ public class RpcObject extends EventDispatcher {
     }
 
     public function __signalDropped__(reason:String = null):void {
+        _state = 'dropped';
         dispatchEvent(new RpcObjectEvent(RpcObjectEvent.DROPPED, reason));
     }
 
