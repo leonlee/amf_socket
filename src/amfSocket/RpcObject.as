@@ -110,6 +110,10 @@ public class RpcObject extends EventDispatcher {
 //        throw new Error("Received 'failed' signal when not in 'delivered' state.");
     }
 
+    public function __signalDropped__(reason:String = null):void {
+        dispatchEvent(new RpcObjectEvent(RpcObjectEvent.DROPPED, reason));
+    }
+
     protected function isState(state:String):Boolean {
         if (_state == state)
             return true;
