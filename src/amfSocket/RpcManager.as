@@ -113,7 +113,7 @@ public class RpcManager extends EventDispatcher {
         if (!_socket || !_socket.connected) {
             if (_reconnectTimes < _maxReconnect) {
                 _requestQueue.push(rpcObject);
-                _reconnecter.beforeConnect();
+                prepareReconnect();
             } else {
                 fail();
                 rpcObject.__signalFailed__('timeout');
@@ -146,16 +146,12 @@ public class RpcManager extends EventDispatcher {
         sendResponse(object);
     }
 
-    public function clearRequests():void {
+    public function cleanRpcObject():void {
         for each (var rpcObject:RpcObject in _requestQueue) {
             rpcObject.__signalDropped__();
         }
         _requestQueue = [];
-        for (var messageId:String in _requests) {
-            var request:RpcRequest = _requests[messageId];
-            request.__signalDropped__();
-            delete _requests[messageId];
-        }
+        cleanRequests();
     }
 
     public function failRequests():void {
@@ -193,9 +189,21 @@ public class RpcManager extends EventDispatcher {
         }
     }
 
-    //
-    // Protected methods.
-    //
+    private function cleanRequests():void {
+        for (var messageId:String in _requests) {
+            var request:RpcRequest = _requests[messageId];
+            request.__signalDropped__();
+            delete _requests[messageId];
+        }
+    }
+
+    private function prepareReconnect():void {
+        if (_state == ST_CONNECTING) {
+            logger.debug("in connecting, can't reconnect");
+            return;
+        }
+        _reconnecter.beforeConnect();
+    }
 
     private function fail():void {
         _responseQueue = [];
@@ -299,14 +307,17 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function cleanUp(reason:String = "clean"):void {
+        cleanSocket();
+        cleanRpcObject();
+        clearRequestTimers();
+    }
+
+    private function cleanSocket():void {
         if (_socket) {
             _socket.disconnect();
             removeSocketEventListeners();
             _socket = null;
         }
-
-        clearRequests();
-        clearRequestTimers();
     }
 
     private function isValidRpcResponse(data:Object):Boolean {
@@ -411,11 +422,10 @@ public class RpcManager extends EventDispatcher {
     }
 
     public function reconnect(event:Event):void {
-        if (_state == ST_CONNECTING) {
-            logger.debug("in connecting, can't reconnect");
-            return;
-        }
-        __disconnect();
+        _state = ST_DISCONNECTED;
+        cleanSocket();
+        clearRequestTimers();
+        cleanRequests();
         logger.debug("reconnect times: {0}", [_reconnectTimes]);
         _reconnectTimes = _reconnectTimes < 0 ? 0 : _reconnectTimes;
         __connect();
@@ -423,7 +433,7 @@ public class RpcManager extends EventDispatcher {
 
     private function onAppDeactivate(event:Event):void {
         _responseQueue = [];
-        clearRequests();
+        cleanRpcObject();
         clearRequestTimers();
     }
 
