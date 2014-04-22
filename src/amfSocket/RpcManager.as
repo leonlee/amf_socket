@@ -36,9 +36,7 @@ public class RpcManager extends EventDispatcher {
         _host = host;
         _port = port;
         _reconnecter = reconnector instanceof Reconnector ? reconnector : new Reconnector();
-        _reconnecter.addEventListener(Reconnector.BEFORE_CONNECT_DONE, reconnect);
-        _reconnecter.addEventListener(Reconnector.AFTER_CONNECT_DONE, sendBufferedRpc);
-
+        initReconnector();
         if (options == null)
             options = {};
 
@@ -52,12 +50,11 @@ public class RpcManager extends EventDispatcher {
     private var _host:String = null;
     private var _port:int = 0;
     private var _socket:AmfSocket = null;
+    private var _reconnectTimes:int = -1;
 
     //
     // Getters and setters.
     //
-    private var _reconnecter:Reconnector = null;
-    private var _reconnectTimes:int = -1;
     private var _maxReconnect:int = 0;
     private var _state:String = ST_INITIALIZED;
     private var _requests:Dictionary = new Dictionary();
@@ -66,6 +63,18 @@ public class RpcManager extends EventDispatcher {
     private var _requestQueue:Array = [];
     private var _responseQueue:Array = [];
     private var _format:int = AmfSocket.FORMAT_AMF3;
+
+    private var _reconnecter:Reconnector = null;
+
+    public function get reconnecter():Reconnector {
+        return _reconnecter;
+    }
+
+    public function set reconnecter(value:Reconnector):void {
+        destroyReconnector();
+        _reconnecter = value;
+        initReconnector();
+    }
 
     public function connect():void {
         if (isDisconnected() || isInitialized())
@@ -189,6 +198,16 @@ public class RpcManager extends EventDispatcher {
         }
     }
 
+    private function destroyReconnector():void {
+        _reconnecter.removeEventListener(Reconnector.BEFORE_CONNECT_DONE, reconnect);
+        _reconnecter.removeEventListener(Reconnector.AFTER_CONNECT_DONE, sendBufferedRpc);
+    }
+
+    private function initReconnector():void {
+        _reconnecter.addEventListener(Reconnector.BEFORE_CONNECT_DONE, reconnect);
+        _reconnecter.addEventListener(Reconnector.AFTER_CONNECT_DONE, sendBufferedRpc);
+    }
+
     private function cleanRequests():void {
         for (var messageId:String in _requests) {
             var request:RpcRequest = _requests[messageId];
@@ -233,12 +252,11 @@ public class RpcManager extends EventDispatcher {
             setRpcTimeout(needResponse, rpcObject);
             var object:Object = rpcObject.toObject();
             _socket.sendObject(object);
+            rpcObject.__signalDelivered__();
 
             if (needResponse) {
                 _requests[rpcObject.messageId] = rpcObject;
             }
-
-            rpcObject.__signalDelivered__();
         } catch (error:Error) {
             logger.debug("caught error when delivering {0}, {1}", [JSON.stringify(error, null, 4), error.getStackTrace()]);
             dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED, error));
