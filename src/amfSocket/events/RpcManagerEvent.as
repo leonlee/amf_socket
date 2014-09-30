@@ -1,9 +1,7 @@
-package amfSocket.events
-{
-  import flash.events.Event;
+package amfSocket.events {
+import flash.events.Event;
 
-  public class RpcManagerEvent extends Event
-  {
+public class RpcManagerEvent extends Event {
     //
     // Constants.
     //
@@ -25,16 +23,18 @@ package amfSocket.events
     // Constructor.
     //
 
-    public function RpcManagerEvent(type:String, data:Object=null, bubbles:Boolean=false, cancelable:Boolean=false) {
-      _data = data;
+    public function RpcManagerEvent(type:String, data:Object = null, bubbles:Boolean = false, cancelable:Boolean = false) {
+        _data = data;
 
-      super(type, bubbles, cancelable);
+        super(type, bubbles, cancelable);
     }
 
     //
     // Getters and setters.
     //
 
-    public function get data():Object { return _data; }
-  }
+    public function get data():Object {
+        return _data;
+    }
+}
 }

@@ -1,25 +1,23 @@
-package amfSocket
-{
-  public class RpcMessage extends RpcObject
-  {
+package amfSocket {
+public class RpcMessage extends RpcObject {
     //
     // Constructor.
     //
 
     public function RpcMessage(command:Object, params:Object) {
-      super(command, params);
+        super(command, params);
     }
 
     public override function toObject():Object {
-      var object:Object = {}
+        var object:Object = {}
 
-      object.type = 'rpcMessage';
-      object.message = {};
-      object.message.command = command;
-      object.message.params = params;
-      object.message.messageId = messageId;
+        object.type = 'rpcMessage';
+        object.message = {};
+        object.message.command = command;
+        object.message.params = params;
+        object.message.messageId = messageId;
 
-      return object;
+        return object;
     }
-  }
+}
 }

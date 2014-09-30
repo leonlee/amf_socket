@@ -1,13 +1,11 @@
-package amfSocket
-{
-  public class RpcReceivedMessage extends RpcReceivedObject
-  {
+package amfSocket {
+public class RpcReceivedMessage extends RpcReceivedObject {
     //
     // Constructor.
     //
 
     public function RpcReceivedMessage(receivedObject:Object) {
-      super(receivedObject);
+        super(receivedObject);
     }
 
     //
@@ -15,9 +13,9 @@ package amfSocket
     //
 
     protected override function fromObject(object:Object):void {
-     _messageId = object.message.messageId;
-     _command = object.message.command;
-     _params = object.message.params;
+        _messageId = object.message.messageId;
+        _command = object.message.command;
+        _params = object.message.params;
     }
-  }
+}
 }

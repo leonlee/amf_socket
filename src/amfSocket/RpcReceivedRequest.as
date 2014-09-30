@@ -1,7 +1,5 @@
-package amfSocket
-{
-  public class RpcReceivedRequest extends RpcReceivedObject
-  {
+package amfSocket {
+public class RpcReceivedRequest extends RpcReceivedObject {
     //
     // Instance variables.
     //
@@ -13,25 +11,27 @@ package amfSocket
     //
 
     public function RpcReceivedRequest(receivedObject:Object) {
-      super(receivedObject);
+        super(receivedObject);
     }
 
     //
     // Getters and setters.
     //
 
-    public function get state():String { return _state; }
+    public function get state():String {
+        return _state;
+    }
 
     //
     // Public methods.
     //
 
     public function isInitialized():Boolean {
-      return isState('initialized');
+        return isState('initialized');
     }
 
     public function isResponded():Boolean {
-      return isState('responded');
+        return isState('responded');
     }
 
     //
@@ -39,9 +39,9 @@ package amfSocket
     //
 
     protected override function fromObject(object:Object):void {
-      _messageId = object.request.messageId;
-      _command = object.request.command;
-      _params = object.request.params;
+        _messageId = object.request.messageId;
+        _command = object.request.command;
+        _params = object.request.params;
     }
 
     //
@@ -49,10 +49,10 @@ package amfSocket
     //
 
     private function isState(state:String):Boolean {
-      if(_state == state)
-        return true;
-      else
-        return false;
+        if (_state == state)
+            return true;
+        else
+            return false;
     }
 
     //
@@ -62,7 +62,7 @@ package amfSocket
     //
 
     public function __signalResponded__():void {
-      _state = 'responded';
+        _state = 'responded';
     }
-  }
+}
 }

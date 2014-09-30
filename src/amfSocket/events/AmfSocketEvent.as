@@ -1,9 +1,7 @@
-package amfSocket.events
-{
-  import flash.events.Event;
+package amfSocket.events {
+import flash.events.Event;
 
-  public class AmfSocketEvent extends Event
-  {
+public class AmfSocketEvent extends Event {
     //
     // Constants.
     //
@@ -24,16 +22,18 @@ package amfSocket.events
     // Constructor.
     //
 
-    public function AmfSocketEvent(type:String, data:Object=null, bubbles:Boolean=false, cancelable:Boolean=false) {
-      _data = data;
+    public function AmfSocketEvent(type:String, data:Object = null, bubbles:Boolean = false, cancelable:Boolean = false) {
+        _data = data;
 
-      super(type, bubbles, cancelable);
+        super(type, bubbles, cancelable);
     }
 
     //
     // Getters and setters.
     //
 
-    public function get data():Object { return _data; }
-  }
+    public function get data():Object {
+        return _data;
+    }
+}
 }

@@ -9,6 +9,7 @@ import flash.events.SecurityErrorEvent;
 import flash.net.ObjectEncoding;
 import flash.net.Socket;
 import flash.utils.ByteArray;
+import flash.utils.CompressionAlgorithm;
 import flash.utils.Endian;
 
 import org.as3commons.logging.api.ILogger;
@@ -140,12 +141,18 @@ public class AmfSocket extends EventDispatcher {
             var payloadSize:int = _buffer.readUnsignedInt();
 
             if (_buffer.length >= payloadSize + 4) {
-//          if (_compress) {
-//            _buffer.uncompress();
-//          }
+                var objectBuffer:ByteArray = null;
+                if (_compress) {
+                    objectBuffer = new ByteArray();
+                    objectBuffer.writeBytes(_buffer, _buffer.position);
+                    objectBuffer.uncompress(CompressionAlgorithm.ZLIB);
+                } else {
+                    objectBuffer = _buffer;
+                }
+
                 var object:* = null;
                 if (_format == FORMAT_AMF3) {
-                    object = _buffer.readObject();
+                    object = objectBuffer.readObject();
                 } else if (_format == FORMAT_MSGPACK) {
                     throw new Error("not implemented msgpack");
                 }
