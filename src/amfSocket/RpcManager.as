@@ -13,7 +13,7 @@ import org.as3commons.logging.api.ILogger;
 import org.as3commons.logging.api.getLogger;
 
 public class RpcManager extends EventDispatcher {
-    public static const SEND_TIMEOUT:Number = 10000;
+    public static const SEND_TIMEOUT:Number = 20000;
     public static const OPT_COMPRESS:String = 'compress';
     public static const OPT_FORMAT:String = 'format';
     public static const OPT_MAX_RECONNECT:String = 'maxReconnect';
@@ -24,6 +24,7 @@ public class RpcManager extends EventDispatcher {
     public static const ST_CONNECTING:String = 'connecting';
     public static const ST_DISPOSED:String = 'disposed';
     public static const ST_FAILED:String = 'failed';
+    public static const ST_RECONNECTING:String = 'reconnecting';
     // interval
     private static const logger:ILogger = getLogger(RpcManager);
     private static const AMF_SOCKET_PING:String = 'amf_socket_ping';
@@ -50,7 +51,7 @@ public class RpcManager extends EventDispatcher {
     private var _host:String = null;
     private var _port:int = 0;
     private var _socket:AmfSocket = null;
-    private var _reconnectTimes:int = -1;
+    private var _reconnectTimes:int = 0;
 
     //
     // Getters and setters.
@@ -60,8 +61,8 @@ public class RpcManager extends EventDispatcher {
     private var _requests:Dictionary = new Dictionary();
     private var _requestTimers:Dictionary = new Dictionary();
     private var _compress:Boolean = false;
-    private var _requestQueue:Array = [];
-    private var _responseQueue:Array = [];
+    private var _bufferedRequest:RpcObject = null;
+    private var _bufferedResponse:Object = null;
     private var _format:int = AmfSocket.FORMAT_AMF3;
 
     private var _reconnecter:Reconnector = null;
@@ -120,8 +121,12 @@ public class RpcManager extends EventDispatcher {
 
     public function deliver(rpcObject:RpcObject):void {
         if (!_socket || !_socket.connected) {
-            if (_reconnectTimes < _maxReconnect) {
-                _requestQueue.push(rpcObject);
+            if (_state == ST_RECONNECTING && rpcObject.getOption("fromReconnector")) {
+                sendRequest(rpcObject);
+            } else if (_state == ST_CONNECTING) {
+                rpcObject.__signalFailed__('connecting');
+            } else if (-1 == _maxReconnect || _reconnectTimes < _maxReconnect) {
+                _bufferedRequest = rpcObject;
                 prepareReconnect();
             } else {
                 fail();
@@ -136,7 +141,7 @@ public class RpcManager extends EventDispatcher {
         if (!request.isInitialized())
             throw new Error('You must only reply to a request one time.');
 
-        var object:Object = {}
+        var object:Object = {};
         object.type = 'rpcResponse';
         object.response = {};
         object.response.messageId = request.messageId;
@@ -144,8 +149,10 @@ public class RpcManager extends EventDispatcher {
         object.state = 'initialized';
 
         if (!_socket || !_socket.connected) {
-            if (_reconnectTimes < _maxReconnect) {
-                _responseQueue.push(result);
+            if (_state == ST_CONNECTING) {
+                logger.error("response fail {0}", [JSON.stringify(object, null, 4)]);
+            } else if (-1 == _maxReconnect || _reconnectTimes < _maxReconnect) {
+                _bufferedResponse = result;
                 _reconnecter.beforeConnect();
             } else {
                 fail();
@@ -156,18 +163,16 @@ public class RpcManager extends EventDispatcher {
     }
 
     public function cleanRpcObject():void {
-        for each (var rpcObject:RpcObject in _requestQueue) {
-            rpcObject.__signalDropped__();
-        }
-        _requestQueue = [];
+        if (_bufferedRequest)
+            _bufferedRequest.__signalDropped__();
+        _bufferedRequest = null;
         cleanRequests();
     }
 
     public function failRequests():void {
-        for each (var rpcObject:RpcObject in _requestQueue) {
-            rpcObject.__signalFailed__();
-        }
-        _requestQueue = [];
+        if (_bufferedRequest)
+            _bufferedRequest.__signalFailed__();
+        _bufferedRequest = null;
         for (var messageId:String in _requests) {
             var request:RpcRequest = _requests[messageId];
             request.__signalFailed__();
@@ -199,13 +204,13 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function destroyReconnector():void {
-        _reconnecter.removeEventListener(Reconnector.BEFORE_CONNECT_DONE, reconnect);
-        _reconnecter.removeEventListener(Reconnector.AFTER_CONNECT_DONE, sendBufferedRpc);
+        _reconnecter.removeEventListener(Reconnector.BEFORE_CONNECT_DONE, autoReconnect);
+        _reconnecter.removeEventListener(Reconnector.AFTER_CONNECT_DONE, afterReconnected);
     }
 
     private function initReconnector():void {
-        _reconnecter.addEventListener(Reconnector.BEFORE_CONNECT_DONE, reconnect);
-        _reconnecter.addEventListener(Reconnector.AFTER_CONNECT_DONE, sendBufferedRpc);
+        _reconnecter.addEventListener(Reconnector.BEFORE_CONNECT_DONE, autoReconnect);
+        _reconnecter.addEventListener(Reconnector.AFTER_CONNECT_DONE, afterReconnected);
     }
 
     private function cleanRequests():void {
@@ -225,11 +230,11 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function fail():void {
-        _responseQueue = [];
+        _bufferedResponse = null;
         failRequests();
         clearRequestTimers();
         _state = ST_FAILED;
-        _reconnectTimes = -1;
+        _reconnectTimes = 0;
         dispatchEvent(new RpcManagerEvent(RpcManagerEvent.FAILED, 'reconnect failed'));
     }
 
@@ -436,43 +441,47 @@ public class RpcManager extends EventDispatcher {
     }
 
     private function incReconnectTimes():void {
-        _reconnectTimes = _reconnectTimes != -1 ? _reconnectTimes + 1 : _reconnectTimes;
+        _reconnectTimes++;
     }
 
-    public function reconnect(event:Event):void {
+    public function autoReconnect(event:Event):void {
         _state = ST_DISCONNECTED;
         cleanSocket();
         clearRequestTimers();
         cleanRequests();
         logger.debug("reconnect times: {0}", [_reconnectTimes]);
-        _reconnectTimes = _reconnectTimes < 0 ? 0 : _reconnectTimes;
+        __connect();
+    }
+
+    public function reconnect():void {
+        _state = ST_DISCONNECTED;
+        cleanUp();
+        cleanRequests();
         __connect();
     }
 
     private function onAppDeactivate(event:Event):void {
-        _responseQueue = [];
+        _bufferedResponse = null;
         cleanRpcObject();
         clearRequestTimers();
     }
 
-    private function sendBufferedRpc(event:Event):void {
-        for (var i:int = 0; i < _requestQueue.length; i++) {
-            var rpcObject:RpcObject = _requestQueue[i];
-            sendRequest(rpcObject);
-        }
-        _requestQueue = [];
-        for (var j:int = 0; j < _responseQueue.length; j++) {
-            var response:Object = _responseQueue[j];
-            sendResponse(response);
-        }
-        _responseQueue = [];
+    private function afterReconnected(event:Event):void {
+        _state = ST_CONNECTED;
+        _reconnectTimes = 0;
+        dispatchEvent(new RpcManagerEvent(RpcManagerEvent.CONNECTED));
+
+        if (_bufferedRequest)
+            sendRequest(_bufferedRequest);
+        _bufferedRequest = null;
+        if (_bufferedResponse)
+            sendResponse(_bufferedResponse);
+        _bufferedResponse = null;
     }
 
     private function socket_connected(event:AmfSocketEvent):void {
-        _state = ST_CONNECTED;
-        _reconnectTimes = 0;
+        _state = ST_RECONNECTING;
         _reconnecter.afterConnect();
-        dispatchEvent(new RpcManagerEvent(RpcManagerEvent.CONNECTED));
     }
 
     private function socket_disconnected(event:AmfSocketEvent):void {

@@ -14,6 +14,30 @@ public class RpcObject extends EventDispatcher {
         _command = command;
         _params = params;
         _messageId = genMessageId();
+        _options = {};
+    }
+
+    private var _options:Object = null;
+
+    public function setOptions(options:Object):void {
+        if (options)
+            _options = options;
+    }
+
+    public function setOption(name:String, value:Object):void {
+        _options[name] = value;
+    }
+
+    public function getOptions():Object {
+        return _options;
+    }
+
+    public function getOption(name:String):Object {
+        return _options[name];
+    }
+
+    public function hasOption(name:String):Object {
+        return _options[name] != null;
     }
 
     private var _messageId:String = null;
