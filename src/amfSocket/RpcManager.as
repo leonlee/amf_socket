@@ -124,7 +124,7 @@ public class RpcManager extends EventDispatcher {
             if (_state == ST_RECONNECTING && rpcObject.getOption("fromReconnector")) {
                 sendRequest(rpcObject);
             } else if (_state == ST_CONNECTING) {
-                rpcObject.__signalFailed__('connecting');
+                rpcObject.__signalDropped__('connecting');
             } else if (-1 == _maxReconnect || _reconnectTimes < _maxReconnect) {
                 _bufferedRequest = rpcObject;
                 prepareReconnect();
